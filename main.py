@@ -10,7 +10,7 @@ if __name__ == "__main__":
     m = 1.0 # Mass [kg]
     x_0 = 1.0 # Initial position [m]
     v_0 = 0.0 # Initial speed [m/sec]
-    Npoints = 1000000 # Number of points
+    Npoints = 10000 # Number of points
     t_params = [ 0.0 , # t_i 
                  4.0*np.pi , # t_f
                  Npoints ]
@@ -21,8 +21,8 @@ if __name__ == "__main__":
 
     # 2D Plot of position vs time
     fig, ax = plt.subplots()
-    ax.plot( t_arr , x_arr , color = "red" , linestyle = "dashed" , label = r"pos X" , linewidth = 4 )
-    ax.plot( t_arr , x_real , color = "green" , linestyle = "solid" , label = r"pos X" , linewidth = 4 )
+    ax.plot( t_arr , x_arr , color = "red" , linestyle = "dashed" , label = r"simulated X" , linewidth = 4 )
+    ax.plot( t_arr , x_real , color = "green" , linestyle = "solid" , label = r"real X" , linewidth = 4 )
 
     ax.set_xlabel( r"Time [sec]" )
     ax.set_ylabel( r"X [m]" )
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     # 2D Plot example
     fig, ax = plt.subplots()
-    ax.plot( t_arr , err_arr , color = "red" , linestyle = "dashed" , label = r"pos X" , linewidth = 4 )
+    ax.plot( t_arr , err_arr , color = "red" , linestyle = "dashed" , label = r"X error" , linewidth = 4 )
 
     ax.set_xlabel( r"Time [sec]" )
     ax.set_ylabel( r"X [m]" )
