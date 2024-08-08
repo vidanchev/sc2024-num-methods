@@ -119,3 +119,80 @@ def Verlet_Oscillator( k , m , x_0 , v_0 , t_params ):
 
     # My x_arr and v_arr are populated with the solution - return them
     return t_arr , x_arr , v_arr
+
+
+# Compute the Right-Hand-Side (RHS) of ballistic trajectory in 2D
+# Inputs:
+# - g -> grav acc on surface: [m/sec^2]
+# - beta -> drag coefficient [1/sec]
+# - pos[ 2 ] -> [ x , y ] position in [m]
+# - vel[ 2 ] -> [ vx , vy ] velocity in [m/sec]
+# Output:
+# - rhs_pos[ 2 ] -> the RHS of position -> [ f_x , f_y ]
+# - rhs_vel[ 2 ] -> the RHS of velocity -> [ f_vx , f_vy ]
+def rhs_ballistic( g , beta , pos , vel ):
+
+    rhs_pos = [ vel[ 0 ] , # f_x = v_x
+                vel[ 1 ] ] # f_y = v_y
+    rhs_vel = [ - beta*vel[ 0 ] , # f_vx = - beta*v_x
+                - g - beta*vel[ 1 ] ] # f_vy = - g - beta*v_y
+    
+    return rhs_pos , rhs_vel
+
+# Integrate Ballistic Trajectory through Verlet's method
+# Inputs:
+# - g -> grav acceleration [m/sec^2]
+# - beta -> drag coeff [1/sec]
+# - pos_0[ 2 ] -> [ x_0 , y_0 ] initial position [m]
+# - vel_0[ 2 ] -> [ vx_0 , vy_0 ] initial velocity [m/sec]
+# - t_params[ 3 ] -> [ t_i , t_f , Npoints ] 
+# -- initial time (t_i) in [sec]
+# -- final time (t_f) in [sec]
+# -- Number of points Npoints [-]
+# Outputs:
+# - t_arr[ Npoints ] -> time array from t_i to t_f in [sec]
+# - pos_arr[ 2 ][ Npoints ] -> position solution in [m], first index 0 for x, 1 for y 
+# - vel_arr[ 2 ][ Npoints ] -> velocity solution in [m], first index 0 for x, 1 for y
+def Verlet_Ballistic( g , beta , pos_0 , vel_0 , t_params ):
+
+    # Take out the initial and final time (1st and 2nd element of t_params)
+    t_i = t_params[ 0 ]
+    t_f = t_params[ 1 ]
+    # Take out the number of points which is 3d element in the t_params
+    Npoints = t_params[ 2 ]
+    # Compute the time step dt 
+    dt = ( t_f - t_i )/( Npoints - 1 ) 
+    # NOTE: Intervals are 1 less tha nnumber of points -> | | | has 3 points, 2 interfvals
+
+    # Create empty arrays which will hold the solution
+    pos = np.zeros( ( 2 , Npoints ) )
+    vel = np.zeros( ( 2 , Npoints ) )
+    # Create the time array
+    t_arr = np.linspace( t_i , t_f , Npoints )
+
+    # Assign the initial position and velocity
+    pos[ 0 ][ 0 ] = pos_0[ 0 ] # initial position in X
+    pos[ 1 ][ 0 ] = pos_0[ 1 ] # initial position in Y
+    vel[ 0 ][ 0 ] = vel_0[ 0 ] # initial velocity in X (Vx)
+    vel[ 1 ][ 0 ] = vel_0[ 1 ] # initial velocity in Y (Vy)
+
+    # Integration loop -> go over each time step and extrapolate the next
+    for i in range( 0 , Npoints - 1 ):
+        # Compute RHS in the first point (i)
+        rhs_pos, rhs_vel = rhs_ballistic( g , beta , np.transpose( pos )[ i ] , np.transpose( vel )[ i ] )
+        # Compute half-velocity step -> intermediate step # NOTE: dt/2 -> half-step
+        vx_half = vel[ 0 ][ i ] + rhs_vel[ 0 ]*dt/2.0
+        vy_half = vel[ 1 ][ i ] + rhs_vel[ 1 ]*dt/2.0
+        # Compute RHS in the intermediate point (i+1/2)
+        rhs_pos, rhs_vel = rhs_ballistic( g , beta , np.transpose( pos )[ i ] , [ vx_half , vy_half ] ) # NOTE: We are passing the half-point velocity
+        # Compute full position step based on v_half
+        pos[ 0 ][ i + 1 ] = pos[ 0 ][ i ] + rhs_pos[ 0 ]*dt
+        pos[ 1 ][ i + 1 ] = pos[ 1 ][ i ] + rhs_pos[ 1 ]*dt
+        # Compute RHS in the last point (i+1)
+        rhs_pos, rhs_vel = rhs_ballistic( g , beta , np.transpose( pos )[ i + 1 ] , [ vx_half , vy_half ] ) # NOTE: We are passing the next moment in position
+        # Compute the full velocity step based on v_half and x[ i + 1 ]
+        vel[ 0 ][ i + 1 ] = vx_half + rhs_vel[ 0 ]*dt/2.0
+        vel[ 1 ][ i + 1 ] = vy_half + rhs_vel[ 1 ]*dt/2.0
+
+    # My pos[ 2 ][ Npoints ] and vel[ 2 ][ Npoints ] are populated with the solution - return them
+    return t_arr , pos , vel

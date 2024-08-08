@@ -4,7 +4,38 @@ from numpy import pi
 import numpy as np
 
 if __name__ == "__main__":
+    
+    # Example parameters for ballistic
+    g = 9.8 # [m/sec^2]
+    beta = 0.01 # [1/sec] drag
+    pos_0 = [ 0 , 0 ]
+    alp = 30.0 # Alpha - angle to the horizon [deg]
+    v_0 = 100.0 # Norm of the velocity [m/sec]
+    # Compute velocity vector from trig
+    vel_0 = [ v_0*np.cos( alp*np.pi/180.0 ) ,  # Converting Vx from V and Alpha
+              v_0*np.sin( alp*np.pi/180.0 ) ]  # Converting Vy from V and Alpha
+    Npoints = 1000 # Number of points
+    t_params = [ 0.0 , # t_i 
+                 10.0 , # t_f
+                 Npoints ]
 
+    t_arr, pos, vel = Verlet_Ballistic( g , beta , pos_0 , vel_0 , t_params )
+
+    x_real = vel_0[ 0 ]*t_arr + pos_0[ 0 ]
+    y_real = vel_0[ 1 ]*t_arr + pos_0[ 1 ] - 0.5*g*t_arr*t_arr
+
+    fig, ax = plt.subplots()
+    ax.scatter( pos[ 0 ] , pos[ 1 ] , color = "red" , label = r"Verlet sim" , linewidth = 4 )
+    ax.plot( x_real , y_real , color = "green" , linestyle = "solid" , label = r"real traj" , linewidth = 2 )
+
+    ax.set_xlabel( r"X [m]" )
+    ax.set_ylabel( r"Y [m]" )
+
+    ax.legend( loc = "upper right" )
+    plt.grid( True )
+    plt.show()
+
+    '''
     # Example parameters for which we know the solution
     k = 1.0 # Spring constant [N/kg]
     m = 1.0 # Mass [kg]
@@ -57,3 +88,4 @@ if __name__ == "__main__":
     plt.show()
     print( "Max error for Euler = " + str( max( err_eul ) ) + " [%]" )
     print( "Max error for Verlet = " + str( max( err_ver ) ) + " [%]" )
+    '''
