@@ -120,6 +120,71 @@ def Verlet_Oscillator( k , m , x_0 , v_0 , t_params ):
     # My x_arr and v_arr are populated with the solution - return them
     return t_arr , x_arr , v_arr
 
+# Integrate Harmonic oscillator through Runge-Kutta 4th order method
+# Inputs:
+# - k -> spring constant [N/m]
+# - m -> mass [kg]
+# - x_0 -> initial position [m]
+# - v_0 -> initial velocity [m/sec]
+# - t_params[ 3 ] -> [ t_i , t_f , Npoints ] 
+# -- initial time (t_i) in [sec]
+# -- final time (t_f) in [sec]
+# -- Number of points Npoints [-]
+# Outputs:
+# - t_arr[ Npoints ] -> time array from t_i to t_f in [sec]
+# - x_arr[ Npoints ] -> position solution in [m]
+# - v_arr[ Npoints ] -> velocity solution in [m] 
+def RK4_Oscillator( k , m , x_0 , v_0 , t_params ):
+
+    # Take out the initial and final time (1st and 2nd element of t_params)
+    t_i = t_params[ 0 ]
+    t_f = t_params[ 1 ]
+    # Take out the number of points which is 3d element in the t_params
+    Npoints = t_params[ 2 ]
+    # Compute the time step dt 
+    dt = ( t_f - t_i )/( Npoints - 1 ) 
+    # NOTE: Intervals are 1 less tha nnumber of points -> | | | has 3 points, 2 interfvals
+
+    # Create empty arrays which will hold the solution
+    x_arr = np.zeros( Npoints )
+    v_arr = np.zeros( Npoints )
+    # Create the time array
+    t_arr = np.linspace( t_i , t_f , Npoints )
+
+    # Assign the initial position and velocity
+    x_arr[ 0 ] = x_0
+    v_arr[ 0 ] = v_0
+
+    # Integration loop -> go over each time step and extrapolate the next with RK(4)
+    for i in range( 0 , Npoints - 1 ):
+        # Compute RHS at first point (i) in preparation for k_1 computation
+        rhs_x, rhs_v = rhs_osc( m , k , x_arr[ i ] , v_arr[ i ] )
+        # Assign k_1 derivatives
+        kx_1 = rhs_x
+        kv_1 = rhs_v
+        # Compute RHS at second point ( i+dt/2 , x+k_1/2 ) in preparation for k_2 computation
+        rhs_x, rhs_v = rhs_osc( m , k , x_arr[ i ] + kx_1*dt/2.0 , v_arr[ i ] + kv_1*dt/2.0 )
+        # Assign k_2 derivatives
+        kx_2 = rhs_x
+        kv_2 = rhs_v
+        # Compute RHS at third point ( i+dt/2 , x+k_2/2 ) in preparation for k_3 computation
+        rhs_x, rhs_v = rhs_osc( m , k , x_arr[ i ] + kx_2*dt/2.0 , v_arr[ i ] + kv_2*dt/2.0 )
+        # Assign k_3 derivatives
+        kx_3 = rhs_x
+        kv_3 = rhs_v
+        # Compute RHS at forth and last point ( i+dt , x+k_3 ) in preparation for final computation
+        rhs_x, rhs_v = rhs_osc( m , k , x_arr[ i ] + kx_3*dt , v_arr[ i ] + kv_3*dt )
+        # Assign k_4 derivatives
+        kx_4 = rhs_x
+        kv_4 = rhs_v
+
+        # CONGRATS, WE HAVE OUR K VALUES, kx_1, kx_2, kx_3, kx_4 & kv_1, kv_2, kv_3, kv_4
+        x_arr[ i + 1 ] = x_arr[ i ] + ( kx_1 + 2.0*kx_2 + 2.0*kx_3 + kx_4 )*dt/6.0
+        v_arr[ i + 1 ] = v_arr[ i ] + ( kv_1 + 2.0*kv_2 + 2.0*kv_3 + kv_4 )*dt/6.0
+
+    # My x_arr and v_arr are populated with the solution - return them
+    return t_arr , x_arr , v_arr
+
 
 # Compute the Right-Hand-Side (RHS) of ballistic trajectory in 2D
 # Inputs:
@@ -193,6 +258,25 @@ def Verlet_Ballistic( g , beta , pos_0 , vel_0 , t_params ):
         # Compute the full velocity step based on v_half and x[ i + 1 ]
         vel[ 0 ][ i + 1 ] = vx_half + rhs_vel[ 0 ]*dt/2.0
         vel[ 1 ][ i + 1 ] = vy_half + rhs_vel[ 1 ]*dt/2.0
+        # IF YOU PASS UNDERGROUND - STOP Y
+        # Perfect plastic collision
+        '''
+        if pos[ 1 ][ i + 1 ] < 0.0:
+            pos[ 1 ][ i + 1 ] = 0.0
+            vel[ 1 ][ i + 1 ] = 0.0
+        '''
+        '''
+        # IF YOU PASS UNDERGROUND - BOUNCE
+        # Perfect ellastic collision
+        if pos[ 1 ][ i + 1 ] < 0.0:
+            pos[ 1 ][ i + 1 ] *= - 1.0
+            vel[ 1 ][ i + 1 ] *= - 1.0
+        '''
+        # IF YOU PASS UNDERGROUND - BOUNCE BUT LOSE ENERGY
+        # Realistic collision
+        if pos[ 1 ][ i + 1 ] < 0.0:
+            pos[ 1 ][ i + 1 ] *= - 1.0
+            vel[ 1 ][ i + 1 ] *= - 0.5
 
     # My pos[ 2 ][ Npoints ] and vel[ 2 ][ Npoints ] are populated with the solution - return them
     return t_arr , pos , vel
