@@ -1,5 +1,112 @@
 import numpy as np
 
+G_const = 6.67e-11 # Grav constant [N*m^2/kg^2]
+R_e = 6378.137 # Radius of the Earth in [m]
+M_e = 5.972e24 # Mass of the Earth in [kg]
+
+# RHS for the Keplerian problem, using dimensionless units
+# Inputs:
+# - pos[ 3 ] -> current moment position [R_e] dimensionless units
+# - vel[ 3 ] -> current moment velocity [V_e] dimensionless units
+# Ouputs:
+# - rhs_pos[ 3 ] -> current moment RHS for position [-]
+# - rhs_vel[ 3 ] -> current moment RHS for velocity [-]
+# NOTE: ALL quantities plugged and returned to this function are already dimensionless and the equation of motion take that into account for R_e, V_e and T_e defined bellow
+def Kepler_RHS( pos , vel ):
+
+    #pos_norm = np.sqrt( pos[ 0 ]**2.0 + pos[ 1 ]**2.0 + pos[ 2 ]**2.0 )
+    rhs_pos = vel
+    rhs_vel = - 4.0*np.pi*np.pi*pos/( np.sqrt( np.dot( pos , pos ) )**3.0 )
+
+    return rhs_pos, rhs_vel
+
+# Keplerian orbital motion integrator using RK(4)
+# Inputs:
+# - pos_0[ 3 ] -> position in initial moment [ x , y , z ], [km]
+# - vel_0[ 3 ] -> velocity in initial moment [ vx, vy, vz ], [km/sec]
+# - t_params[ 3 ] -> [ t_i , t_f , Npoints ] 
+# -- initial time (t_i) in [sec]
+# -- final time (t_f) in [sec]
+# -- Number of points Npoints [-]
+# Outputs:
+# - t_arr[ Npoints ] -> time array between t_i and t_f with Npoints in [sec]
+# - pos[ Npoints ][ 3 ] -> position as function of time and [ X , Y , Z ] in [km]
+# - vel[ Npoints ][ 3 ] -> velocity as function of time and [ VX, VY, VZ ] in [km/sec]
+def Kepler_RK4( pos_0 , vel_0 , t_params ):
+
+    # Compute dimensionfull quantities -> the ones we use for norming
+    # We use R_e as spatial scale R_e is our dimensionful parameter in [km]
+    T_e = 2.0*np.pi*np.sqrt( ( R_e*1000.0 )**3/( M_e*G_const ) ) # Characteristic period in [sec]
+    V_e = R_e/T_e # Characteristic velocity in [km/sec]
+
+    # Take out the initial and final time (1st and 2nd element of t_params)
+    # NOTE: Renorm it to dimensionless
+    t_i = t_params[ 0 ]/T_e # NOT [sec], but in units of T_e
+    t_f = t_params[ 1 ]/T_e # NOT [sec], but in untis of T_e
+    # Take out the number of points which is 3d element in the t_params
+    Npoints = t_params[ 2 ]
+    # Compute the time step dt 
+    dt = ( t_f - t_i )/( Npoints - 1 ) # NOTE: Already dimensionless due to t_i and t_f
+    # NOTE: Intervals are 1 less tha number of points -> | | | has 3 points, 2 interfvals
+
+    # Initialize the vectors to hold the solution
+    # First dimension gives you time cross-sections, 2nd dimension (index) gives you [ x , y , z ] 
+    pos = np.zeros( ( Npoints , 3 ) )
+    vel = np.zeros( ( Npoints , 3 ) )
+    # For example, 10th point in time, Y position coordinate is pos[ 9 ][ 1 ], because you start from index 0!
+
+    # Create the time array
+    t_arr = np.linspace( t_i , t_f , Npoints )
+    # Assign initial values for the vectors
+    pos[ 0 ] = np.array( pos_0 )/R_e # Pass initial position value and renorm it in units of [R_e]
+    vel[ 0 ] = np.array( vel_0 )/V_e # Pass initial velocity value and renorm it in units of [V_e]
+
+    # Initializing the k vectors which will be used to hold the Runge-Kutta derivatives 
+    k_pos = np.zeros( ( 4 , len( pos_0 ) ) )
+    k_vel = np.zeros( ( 4 , len( vel_0 ) ) )
+    # NOTE: Examples:
+    # k_pos[ 0 ][ 0 ] -> is just k_1 for X coordinate
+    # k_pos[ 1 ][ 0 ] -> is just k_2 for X coordinate
+    # k_pos[ 2 ][ 0 ] -> is just k_3 for X coordinate
+    # ...
+    # k_pos[ 2 ][ 1 ] -> is just k_3 for Y coordinate
+    # ...
+    # k_pos[ 3 ][ 2 ] -> is just k_4 for Z coordinate
+
+    # Doing the actual integration loop
+    for i in range( 0 , Npoints - 1 ):
+        # Compute RHS at current point f( t , x )
+        rhs_pos, rhs_vel = Kepler_RHS( pos[ i ] , vel[ i ] ) # Pass current position and velocity in time step [ i ]
+        # Assign to k1 for all quantities
+        k_pos[ 0 ] = rhs_pos
+        k_vel[ 0 ] = rhs_vel
+
+        # Compute RHS at first half-step f( t + dt/2 , x + k1*dt/2 )
+        rhs_pos, rhs_vel = Kepler_RHS( pos[ i ] + k_pos[ 0 ]*dt/2.0 , vel[ i ] + k_vel[ 0 ]*dt/2.0 ) # Pass current position and velocity in time step [ i ], incremented by k1/2 
+        # Assign to k2 for all quantities
+        k_pos[ 1 ] = rhs_pos
+        k_vel[ 1 ] = rhs_vel
+
+        # Compute RHS at second half-step f( t + dt/2 , x + k2*dt/2 )
+        rhs_pos, rhs_vel = Kepler_RHS( pos[ i ] + k_pos[ 1 ]*dt/2.0 , vel[ i ] + k_vel[ 1 ]*dt/2.0 ) # Pass current position and velocity in time step [ i ], incremented by k2/2
+        # Assign to k3 for all quantities
+        k_pos[ 2 ] = rhs_pos
+        k_vel[ 2 ] = rhs_vel
+
+        # Compute RHS at next step f( t + dt , x + k3*dt )
+        rhs_pos, rhs_vel = Kepler_RHS( pos[ i ] + k_pos[ 2 ]*dt , vel[ i ] + k_vel[ 2 ]*dt ) # Pass current position and velocity in time step [ i ], incremented by k3
+        # Assign to k4 for all quantities
+        k_pos[ 3 ] = rhs_pos
+        k_vel[ 3 ] = rhs_vel
+
+        # At this stage we have k1, k2, k3, k4 for each X, Y, Z, VX, VY, VZ computed (24 values), let's sum them up for each X, Y, Z, VX, VY, VZ to get the next step
+        pos[ i + 1 ] = pos[ i ] + ( k_pos[ 0 ] + 2.0*k_pos[ 1 ] + 2.0*k_pos[ 2 ] + k_pos[ 3 ] )*dt/6.0
+        vel[ i + 1 ] = vel[ i ] + ( k_vel[ 0 ] + 2.0*k_vel[ 1 ] + 2.0*k_vel[ 2 ] + k_vel[ 3 ] )*dt/6.0
+
+    # Return after multiplying back to [km] and [km/sec] quantities with dimension
+    return t_arr*T_e, pos*R_e , vel*V_e
+
+
 # Right-Hand-Side function which allows us to abstract the forces
 # for x' = rhs_x & v' = rhs_v -> you pass it x & v at some time and it gives you RHS
 # Inputs: 

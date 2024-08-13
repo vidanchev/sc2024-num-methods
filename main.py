@@ -5,6 +5,11 @@ import numpy as np
 
 if __name__ == "__main__":
     
+    pos_0 = [ 7000 , 0.000001 , -0.001608 ] # Initial position [km]
+    vel_0 = [ 0.000002 , 1.310359 , 7.431412 ] # Initial velocity [km/sec]
+    t_params = [ 0.0 , 100.0 , 10 ]
+    Kepler_RK4( pos_0 , vel_0 , t_params )
+
     '''
     # Example parameters for ballistic
     g = 9.8 # [m/sec^2]
@@ -37,6 +42,7 @@ if __name__ == "__main__":
     plt.show()
     '''
     
+    '''
     # Example parameters for which we know the solution
     k = 1.0 # Spring constant [N/kg]
     m = 1.0 # Mass [kg]
@@ -96,3 +102,4 @@ if __name__ == "__main__":
     print( "Max error for Euler = " + str( max( err_eul ) ) + " [%]" )
     print( "Max error for Verlet = " + str( max( err_ver ) ) + " [%]" )
     print( "Max error for RK(4) = " + str( max( err_rk ) ) + " [%]" )
+    '''
